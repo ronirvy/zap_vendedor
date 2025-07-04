@@ -1,3 +1,6 @@
+import { ObjectId } from 'mongodb';
+import { getDb } from '@/lib/mongodb';
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -13,63 +16,80 @@ export interface Conversation {
   updatedAt: Date;
 }
 
-// In-memory conversation store (replace with database in production)
-let conversations: Conversation[] = [];
-
-// Conversation service functions
-export function getConversationByPhoneNumber(phoneNumber: string): Conversation | undefined {
-  return conversations.find(conversation => conversation.phoneNumber === phoneNumber);
+// Funções de persistência no MongoDB
+export async function getConversationByPhoneNumber(phoneNumber: string): Promise<Conversation | undefined> {
+  const db = await getDb();
+  const conv = await db.collection('conversations').findOne({ phoneNumber });
+  return conv ? mapMongoConversation(conv) : undefined;
 }
 
-export function getAllConversations(): Conversation[] {
-  return conversations;
+export async function getAllConversations(): Promise<Conversation[]> {
+  const db = await getDb();
+  const convs = await db.collection('conversations').find().toArray();
+  return convs.map(mapMongoConversation);
 }
 
-export function addMessage(phoneNumber: string, role: 'user' | 'assistant', content: string): Message {
-  // Find existing conversation or create a new one
-  let conversation = getConversationByPhoneNumber(phoneNumber);
-  
-  if (!conversation) {
-    conversation = {
-      id: Date.now().toString(),
-      phoneNumber,
-      messages: [],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    conversations.push(conversation);
-  }
-  
-  // Create new message
+export async function addMessage(phoneNumber: string, role: 'user' | 'assistant', content: string): Promise<Message> {
+  const db = await getDb();
+  const now = new Date();
+  const conversation = await db.collection('conversations').findOne({ phoneNumber });
   const message: Message = {
     id: Date.now().toString(),
     role,
     content,
-    timestamp: new Date()
+    timestamp: now
   };
-  
-  // Add message to conversation
-  conversation.messages.push(message);
-  conversation.updatedAt = new Date();
-  
+  if (conversation) {
+    await db.collection('conversations').updateOne(
+      { phoneNumber },
+      [
+        {
+          $set: {
+            messages: { $concatArrays: ["$messages", [message]] },
+            updatedAt: now
+          }
+        }
+      ]
+    );
+  } else {
+    await db.collection('conversations').insertOne({
+      phoneNumber,
+      messages: [message],
+      createdAt: now,
+      updatedAt: now
+    });
+  }
   return message;
 }
 
-export function getRecentMessages(phoneNumber: string, limit: number = 10): Message[] {
-  const conversation = getConversationByPhoneNumber(phoneNumber);
-  
-  if (!conversation) return [];
-  
-  // Return the most recent messages
-  return conversation.messages.slice(-limit);
+export async function getRecentMessages(phoneNumber: string, limit: number = 10): Promise<Message[]> {
+  const db = await getDb();
+  const conv = await db.collection('conversations').findOne({ phoneNumber });
+  if (!conv) return [];
+  const messages = conv.messages || [];
+  return messages.slice(-limit);
 }
 
-export function deleteConversation(phoneNumber: string): boolean {
-  const initialLength = conversations.length;
-  conversations = conversations.filter(conversation => conversation.phoneNumber !== phoneNumber);
-  return conversations.length < initialLength;
+export async function deleteConversation(phoneNumber: string): Promise<boolean> {
+  const db = await getDb();
+  const result = await db.collection('conversations').deleteOne({ phoneNumber });
+  return result.deletedCount === 1;
 }
 
-export function clearAllConversations(): void {
-  conversations = [];
+export async function clearAllConversations(): Promise<void> {
+  const db = await getDb();
+  await db.collection('conversations').deleteMany({});
+}
+
+function mapMongoConversation(doc: any): Conversation {
+  return {
+    id: doc._id ? doc._id.toString() : '',
+    phoneNumber: doc.phoneNumber,
+    messages: (doc.messages || []).map((m: any) => ({
+      ...m,
+      timestamp: new Date(m.timestamp)
+    })),
+    createdAt: new Date(doc.createdAt),
+    updatedAt: new Date(doc.updatedAt)
+  };
 }

@@ -11,7 +11,7 @@ interface Params {
 export async function GET(request: NextRequest, { params }: Params) {
   try {
     const { id } = params;
-    const product = getProductById(id);
+    const product = await getProductById(id);
     
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
@@ -30,7 +30,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     const { id } = params;
     const body = await request.json();
     
-    const updatedProduct = updateProduct(id, body);
+    const updatedProduct = await updateProduct(id, body);
     
     if (!updatedProduct) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
@@ -47,7 +47,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
     const { id } = params;
-    const success = deleteProduct(id);
+    const success = await deleteProduct(id);
     
     if (!success) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });

@@ -1,7 +1,4 @@
 import axios from 'axios';
-import { storeConversation } from './whatsapp';
-import { Client } from './mcp-mock';
-import { initializeMCPServers } from './mcp';
 
 // Environment variables (to be set in .env.local)
 const OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'http://localhost:11434';
@@ -9,9 +6,6 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'llama2-chat';
 
 // Store conversation history for each user
 const conversationHistory: Record<string, Array<{ role: string; content: string }>> = {};
-
-// Create MCP client
-const mcpClient = new Client();
 
 /**
  * Get a response from the AI model
@@ -36,52 +30,10 @@ export async function getAIResponse(phoneNumber: string, message: string): Promi
     const systemPrompt = `You are a helpful sales assistant for an electronics store.
 Your name is ZapVendedor. You help customers find products like phones, laptops, and accessories.
 Be friendly, concise, and helpful. If you don't know something, say so.
-Always try to recommend relevant products based on the customer's needs.
-
-You have access to the following tools:
-1. search-products: Search for products by query
-2. filter-products: Filter products by category, brand, and/or price
-3. get-product: Get a product by ID
-4. web-search: Search the web for information
-5. scrape-webpage: Scrape content from a webpage
-6. compare-prices: Compare prices of a product across different websites
-
-Use these tools to provide accurate and helpful information to the customer.`;
+Always try to recommend relevant products based on the customer's needs.`;
     
-    // Try to get relevant product information based on the message
+    // Don't fetch product context via MCP on client-side anymore
     let productContext = '';
-    try {
-      // Initialize MCP servers if needed
-      await initializeMCPServers();
-      
-      // Import the MCP module to access server instances
-      const mcp = await import('./mcp');
-      
-      // Connect to MCP servers if not already connected
-      if (mcpClient.servers.length === 0 && mcp.databaseServer && mcp.webServer) {
-        // Connect to database server
-        mcpClient.connectToServer(mcp.databaseServer);
-        
-        // Connect to web server
-        mcpClient.connectToServer(mcp.webServer);
-      }
-      
-      // Search for products related to the message
-      const searchResult = await mcpClient.executeTool('database-server', 'search-products', {
-        query: message
-      });
-      
-      if (searchResult.products && searchResult.products.length > 0) {
-        // Format product information for context
-        productContext = '\n\nRelevant products:\n' +
-          searchResult.products.slice(0, 3).map((product: any) =>
-            `- ${product.name}: ${product.description} - $${product.price}`
-          ).join('\n');
-      }
-    } catch (error) {
-      console.error('Error getting product context:', error);
-      // Continue without product context if there's an error
-    }
     
     // Make request to Ollama API with enhanced context
     const response = await axios.post(`${OLLAMA_API_URL}/api/chat`, {
@@ -109,9 +61,6 @@ Use these tools to provide accurate and helpful information to the customer.`;
     if (conversationHistory[phoneNumber].length > 10) {
       conversationHistory[phoneNumber] = conversationHistory[phoneNumber].slice(-10);
     }
-    
-    // Store conversation in database
-    await storeConversation(phoneNumber, message, aiResponse);
     
     return aiResponse;
   } catch (error) {

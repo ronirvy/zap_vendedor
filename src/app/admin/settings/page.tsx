@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { checkOllamaStatus } from '@/lib/ollama';
-import { getMCPServerStatus, initializeMCPServers, stopMCPServers } from '@/lib/mcp';
 
 export default function SettingsPage() {
   const [whatsappSettings, setWhatsappSettings] = useState({
@@ -17,7 +16,6 @@ export default function SettingsPage() {
   });
   
   const [ollamaStatus, setOllamaStatus] = useState<boolean | null>(null);
-  const [mcpStatus, setMcpStatus] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -41,9 +39,6 @@ export default function SettingsPage() {
         checkOllamaStatus().then(status => {
           setOllamaStatus(status);
         });
-        
-        // Check MCP status
-        setMcpStatus(getMCPServerStatus());
       } catch (error) {
         console.error('Error loading settings:', error);
       }
@@ -106,46 +101,6 @@ export default function SettingsPage() {
     } catch (error) {
       console.error('Error checking Ollama status:', error);
       setMessage({ type: 'error', text: 'Failed to check Ollama status. Please try again.' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Start MCP servers
-  const handleStartMCPServers = async () => {
-    setLoading(true);
-    try {
-      const success = await initializeMCPServers();
-      setMcpStatus(getMCPServerStatus());
-      setMessage({ 
-        type: success ? 'success' : 'error', 
-        text: success 
-          ? 'MCP servers started successfully!' 
-          : 'Failed to start MCP servers.' 
-      });
-    } catch (error) {
-      console.error('Error starting MCP servers:', error);
-      setMessage({ type: 'error', text: 'Failed to start MCP servers. Please try again.' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Stop MCP servers
-  const handleStopMCPServers = async () => {
-    setLoading(true);
-    try {
-      const success = await stopMCPServers();
-      setMcpStatus(getMCPServerStatus());
-      setMessage({ 
-        type: success ? 'success' : 'error', 
-        text: success 
-          ? 'MCP servers stopped successfully!' 
-          : 'Failed to stop MCP servers.' 
-      });
-    } catch (error) {
-      console.error('Error stopping MCP servers:', error);
-      setMessage({ type: 'error', text: 'Failed to stop MCP servers. Please try again.' });
     } finally {
       setLoading(false);
     }
@@ -262,46 +217,6 @@ export default function SettingsPage() {
                 </span>
               )}
             </div>
-          </div>
-        </div>
-        
-        {/* MCP Servers */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-semibold mb-4">MCP Servers</h2>
-          
-          {mcpStatus && (
-            <div className="mb-4">
-              <p className="mb-2">
-                <span className="font-medium">Database Server:</span>{' '}
-                <span className={mcpStatus.databaseServer === 'running' ? 'text-green-600' : 'text-red-600'}>
-                  {mcpStatus.databaseServer}
-                </span>
-              </p>
-              <p>
-                <span className="font-medium">Web Server:</span>{' '}
-                <span className={mcpStatus.webServer === 'running' ? 'text-green-600' : 'text-red-600'}>
-                  {mcpStatus.webServer}
-                </span>
-              </p>
-            </div>
-          )}
-          
-          <div className="flex space-x-2">
-            <button
-              onClick={handleStartMCPServers}
-              disabled={loading}
-              className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded"
-            >
-              Start Servers
-            </button>
-            
-            <button
-              onClick={handleStopMCPServers}
-              disabled={loading}
-              className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
-            >
-              Stop Servers
-            </button>
           </div>
         </div>
         

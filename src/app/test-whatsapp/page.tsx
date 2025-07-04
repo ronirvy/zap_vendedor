@@ -7,7 +7,7 @@ interface Message {
   phoneNumber: string;
   role: 'user' | 'assistant';
   content: string;
-  timestamp: Date;
+  timestamp: string; // Corrigido para string
 }
 
 export default function TestWhatsApp() {
@@ -29,7 +29,8 @@ export default function TestWhatsApp() {
     try {
       const response = await fetch('/api/test-whatsapp');
       const data = await response.json();
-      setMessages(data.messages || []);
+      // Garante que timestamp é string
+      setMessages((data.messages || []).map((msg: any) => ({ ...msg, timestamp: String(msg.timestamp) })));
     } catch (error) {
       console.error('Error fetching messages:', error);
     }

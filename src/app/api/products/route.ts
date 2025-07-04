@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     
     // If search query is provided, search products
     if (searchQuery) {
-      const results = searchProducts(searchQuery);
+      const results = await searchProducts(searchQuery);
       return NextResponse.json(results);
     }
     
@@ -32,12 +32,12 @@ export async function GET(request: NextRequest) {
       if (brand) filters.brand = brand;
       if (maxPrice) filters.price = parseFloat(maxPrice);
       
-      const results = filterProducts(filters);
+      const results = await filterProducts(filters);
       return NextResponse.json(results);
     }
     
     // Otherwise, return all products
-    const products = getAllProducts();
+    const products = await getAllProducts();
     return NextResponse.json(products);
   } catch (error) {
     console.error('Error getting products:', error);
@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    const newProduct = addProduct(body);
+    const newProduct = await addProduct(body);
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error) {
     console.error('Error adding product:', error);
